@@ -90,11 +90,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.black,
     marginBottom: 8,
+    letterSpacing: -0.4,
   },
   subtitle: {
     fontSize: 15,
     color: colors.textSecondary,
     marginBottom: 8,
+    lineHeight: 22,
   },
   body: { flex: 1, marginTop: 20 },
   footer: {

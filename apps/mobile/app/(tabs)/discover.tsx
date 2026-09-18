@@ -3,6 +3,12 @@ import { View, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  interpolate,
+  Extrapolation,
+} from 'react-native-reanimated';
 import { SwipeAction } from '@flirty/shared';
 import { BrandLogo } from '../../src/components/BrandLogo';
 import { SwipeCard, type SwipeCardHandle } from '../../src/components/SwipeCard';
@@ -12,6 +18,7 @@ import { useDiscover, useSwipe } from '../../src/hooks/queries';
 import { swipesApi, type DiscoverProfile } from '../../src/api/endpoints';
 import { useUiStore } from '../../src/store/ui';
 import { colors } from '../../src/theme/colors';
+import { radii } from '../../src/theme/typography';
 
 export default function DiscoverScreen() {
   const insets = useSafeAreaInsets();
@@ -24,6 +31,7 @@ export default function DiscoverScreen() {
   const [emphasize, setEmphasize] = useState<'like' | 'nope' | 'super' | null>(null);
   const topRef = useRef<SwipeCardHandle>(null);
   const seeded = useRef(false);
+  const dragProgress = useSharedValue(0);
 
   useEffect(() => {
     if (discover.data && (!seeded.current || deck.length === 0)) {
@@ -39,7 +47,8 @@ export default function DiscoverScreen() {
     setDeck((prev) => prev.slice(1));
     setPhotoIndex(0);
     setEmphasize(null);
-  }, []);
+    dragProgress.value = 0;
+  }, [dragProgress]);
 
   const handleSwipe = useCallback(
     async (action: SwipeAction) => {
@@ -68,6 +77,25 @@ export default function DiscoverScreen() {
     if (action === SwipeAction.SUPER_LIKE) setEmphasize('super');
     topRef.current?.swipe(action);
   };
+
+  const underlayStyle = useAnimatedStyle(() => {
+    const scale = interpolate(
+      dragProgress.value,
+      [0, 1],
+      [0.94, 1],
+      Extrapolation.CLAMP,
+    );
+    const opacity = interpolate(
+      dragProgress.value,
+      [0, 1],
+      [0.92, 1],
+      Extrapolation.CLAMP,
+    );
+    return {
+      transform: [{ scale }],
+      opacity,
+    };
+  });
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
@@ -104,12 +132,9 @@ export default function DiscoverScreen() {
         ) : (
           <>
             {next ? (
-              <View
-                style={[styles.cardLayer, { transform: [{ scale: 0.96 }] }]}
-                pointerEvents="none"
-              >
+              <Animated.View style={[styles.cardLayer, underlayStyle]} pointerEvents="none">
                 <SwipeCard profile={next} onSwipe={() => undefined} isTop={false} />
-              </View>
+              </Animated.View>
             ) : null}
             <View style={styles.cardLayer}>
               <SwipeCard
@@ -121,6 +146,7 @@ export default function DiscoverScreen() {
                 photoIndex={photoIndex}
                 onPhotoIndexChange={setPhotoIndex}
                 isTop
+                dragProgress={dragProgress}
               />
             </View>
           </>
@@ -150,7 +176,7 @@ export default function DiscoverScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.white },
+  root: { flex: 1, backgroundColor: colors.bgLavenderAlt },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -163,7 +189,7 @@ const styles = StyleSheet.create({
     flex: 1,
     marginHorizontal: 10,
     marginBottom: 8,
-    borderRadius: 20,
+    borderRadius: radii.card,
   },
   cardLayer: {
     ...StyleSheet.absoluteFillObject,

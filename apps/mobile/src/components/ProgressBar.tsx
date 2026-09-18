@@ -22,7 +22,7 @@ export function ProgressBar({ progress }: Props) {
 
 const styles = StyleSheet.create({
   track: {
-    height: 4,
+    height: 3,
     width: '100%',
     backgroundColor: colors.track,
     borderRadius: 2,

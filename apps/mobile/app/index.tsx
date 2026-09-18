@@ -7,7 +7,6 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
   withSequence,
-  withDelay,
 } from 'react-native-reanimated';
 import { BrandLogo } from '../src/components/BrandLogo';
 import { colors } from '../src/theme/colors';
@@ -19,13 +18,13 @@ export default function SplashScreen() {
   const accessToken = useAuthStore((s) => s.accessToken);
   const user = useAuthStore((s) => s.user);
   const opacity = useSharedValue(0);
-  const scale = useSharedValue(0.92);
+  const scale = useSharedValue(0.88);
 
   useEffect(() => {
-    opacity.value = withTiming(1, { duration: 500 });
+    opacity.value = withTiming(1, { duration: 520 });
     scale.value = withSequence(
-      withTiming(1.05, { duration: 400 }),
-      withTiming(1, { duration: 250 }),
+      withTiming(1.06, { duration: 420 }),
+      withTiming(1, { duration: 280 }),
     );
   }, [opacity, scale]);
 
@@ -51,10 +50,11 @@ export default function SplashScreen() {
   return (
     <View style={styles.root}>
       <LinearGradient
-        colors={[colors.gradientStart, colors.gradientEnd]}
+        colors={[colors.gradientStart, colors.gradientMid, colors.gradientEnd]}
+        locations={[0, 0.45, 1]}
         style={StyleSheet.absoluteFill}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
+        start={{ x: 0.2, y: 0 }}
+        end={{ x: 0.8, y: 1 }}
       />
       <Animated.View style={anim}>
         <BrandLogo color={colors.white} size="lg" />

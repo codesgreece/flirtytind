@@ -4,6 +4,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StyleSheet } from 'react-native';
 import { useAuthStore } from '../store/auth';
 import { connectSocket, disconnectSocket } from '../api/socket';
+import { useDeviceRegistration } from '../hooks/useDeviceRegistration';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -15,6 +16,11 @@ const queryClient = new QueryClient({
 });
 
 export { queryClient };
+
+function DeviceRegistrationBridge() {
+  useDeviceRegistration();
+  return null;
+}
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
   const hydrate = useAuthStore((s) => s.hydrate);
@@ -36,7 +42,10 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
 
   return (
     <GestureHandlerRootView style={styles.root}>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        <DeviceRegistrationBridge />
+        {children}
+      </QueryClientProvider>
     </GestureHandlerRootView>
   );
 }

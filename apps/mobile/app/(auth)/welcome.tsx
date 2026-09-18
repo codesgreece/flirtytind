@@ -14,12 +14,18 @@ export default function WelcomeScreen() {
   return (
     <View style={styles.root}>
       <LinearGradient
-        colors={[colors.gradientStart, colors.gradientEnd]}
+        colors={[colors.gradientStart, colors.gradientMid, colors.gradientEnd]}
+        locations={[0, 0.45, 1]}
         style={StyleSheet.absoluteFill}
-        start={{ x: 0.5, y: 0 }}
-        end={{ x: 0.5, y: 1 }}
+        start={{ x: 0.2, y: 0 }}
+        end={{ x: 0.8, y: 1 }}
       />
-      <View style={[styles.content, { paddingTop: insets.top + 48, paddingBottom: insets.bottom + 24 }]}>
+      <View
+        style={[
+          styles.content,
+          { paddingTop: insets.top + 48, paddingBottom: insets.bottom + 24 },
+        ]}
+      >
         <Animated.View entering={FadeInDown.duration(500)} style={styles.logoArea}>
           <BrandLogo color={colors.white} size="lg" />
           <Text style={styles.tagline}>It starts with a Swipe™</Text>
@@ -38,14 +44,14 @@ export default function WelcomeScreen() {
             variant="white"
             onPress={() => router.push('/(auth)/register')}
             style={styles.btn}
-            textStyle={{ color: colors.textPrimary }}
+            textStyle={styles.btnText}
           />
           <PillButton
             label="Sign in"
             variant="white"
             onPress={() => router.push('/(auth)/login')}
             style={styles.btn}
-            textStyle={{ color: colors.textPrimary }}
+            textStyle={styles.btnText}
           />
 
           <Pressable onPress={() => router.push('/(auth)/login')} style={styles.trouble}>
@@ -79,7 +85,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   legal: {
-    color: 'rgba(255,255,255,0.9)',
+    color: 'rgba(255,255,255,0.92)',
     fontSize: 12,
     lineHeight: 18,
     textAlign: 'center',
@@ -91,6 +97,10 @@ const styles = StyleSheet.create({
   },
   btn: {
     backgroundColor: colors.white,
+  },
+  btnText: {
+    color: colors.textPrimary,
+    fontWeight: '700',
   },
   trouble: {
     alignItems: 'center',

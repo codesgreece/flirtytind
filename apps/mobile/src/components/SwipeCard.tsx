@@ -9,17 +9,19 @@ import Animated, {
   runOnJS,
   interpolate,
   Extrapolation,
+  SharedValue,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { SwipeAction, LOOKING_FOR_LABELS, LookingFor } from '@flirty/shared';
 import type { DiscoverProfile } from '../api/endpoints';
 import { colors } from '../theme/colors';
-import { radii } from '../theme/typography';
+import { radii, typography } from '../theme/typography';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const SWIPE_X = SCREEN_W * 0.28;
 const SWIPE_Y = -120;
+const SPRING = { damping: 16, stiffness: 200, mass: 0.85 };
 
 export type SwipeCardHandle = {
   swipe: (action: SwipeAction) => void;
@@ -32,6 +34,8 @@ type Props = {
   photoIndex?: number;
   onPhotoIndexChange?: (index: number) => void;
   isTop?: boolean;
+  /** 0..1 drag progress shared with underlay card for scale peek */
+  dragProgress?: SharedValue<number>;
 };
 
 function formatHeight(cm?: number | null) {
@@ -50,6 +54,7 @@ export const SwipeCard = forwardRef<SwipeCardHandle, Props>(function SwipeCard(
     photoIndex = 0,
     onPhotoIndexChange,
     isTop = true,
+    dragProgress,
   },
   ref,
 ) {
@@ -80,15 +85,26 @@ export const SwipeCard = forwardRef<SwipeCardHandle, Props>(function SwipeCard(
 
   const flyOut = useCallback(
     (action: SwipeAction) => {
-      const toX = action === SwipeAction.PASS ? -SCREEN_W * 1.4 : action === SwipeAction.LIKE ? SCREEN_W * 1.4 : 0;
-      const toY = action === SwipeAction.SUPER_LIKE ? -SCREEN_W * 1.5 : action === SwipeAction.LIKE || action === SwipeAction.PASS ? 40 : 0;
+      const toX =
+        action === SwipeAction.PASS
+          ? -SCREEN_W * 1.5
+          : action === SwipeAction.LIKE
+            ? SCREEN_W * 1.5
+            : 0;
+      const toY =
+        action === SwipeAction.SUPER_LIKE
+          ? -SCREEN_W * 1.6
+          : action === SwipeAction.LIKE || action === SwipeAction.PASS
+            ? 48
+            : 0;
       exiting.value = 1;
+      if (dragProgress) dragProgress.value = withTiming(1, { duration: 220 });
       tx.value = withTiming(toX, { duration: 280 });
       ty.value = withTiming(toY, { duration: 280 }, () => {
         runOnJS(finish)(action);
       });
     },
-    [exiting, finish, tx, ty],
+    [dragProgress, exiting, finish, tx, ty],
   );
 
   useImperativeHandle(ref, () => ({
@@ -100,6 +116,10 @@ export const SwipeCard = forwardRef<SwipeCardHandle, Props>(function SwipeCard(
     .onUpdate((e) => {
       tx.value = e.translationX;
       ty.value = e.translationY;
+      const px = Math.abs(e.translationX) / SWIPE_X;
+      const py = Math.abs(Math.min(e.translationY, 0)) / Math.abs(SWIPE_Y);
+      const p = Math.min(1, Math.max(px, py));
+      if (dragProgress) dragProgress.value = p;
     })
     .onEnd((e) => {
       if (e.translationY < SWIPE_Y && Math.abs(e.translationX) < SWIPE_X) {
@@ -114,12 +134,21 @@ export const SwipeCard = forwardRef<SwipeCardHandle, Props>(function SwipeCard(
         runOnJS(flyOut)(SwipeAction.PASS);
         return;
       }
-      tx.value = withSpring(0, { damping: 18, stiffness: 180 });
-      ty.value = withSpring(0, { damping: 18, stiffness: 180 });
+      // Spring cancel back to center
+      tx.value = withSpring(0, SPRING);
+      ty.value = withSpring(0, SPRING);
+      if (dragProgress) {
+        dragProgress.value = withSpring(0, SPRING);
+      }
     });
 
   const cardStyle = useAnimatedStyle(() => {
-    const rotate = interpolate(tx.value, [-SCREEN_W, 0, SCREEN_W], [-18, 0, 18], Extrapolation.CLAMP);
+    const rotate = interpolate(
+      tx.value,
+      [-SCREEN_W, 0, SCREEN_W],
+      [-18, 0, 18],
+      Extrapolation.CLAMP,
+    );
     return {
       transform: [
         { translateX: tx.value },
@@ -129,17 +158,34 @@ export const SwipeCard = forwardRef<SwipeCardHandle, Props>(function SwipeCard(
     };
   });
 
-  const likeStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(tx.value, [20, SWIPE_X], [0, 1], Extrapolation.CLAMP),
-  }));
+  const likeStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(tx.value, [16, SWIPE_X], [0, 1], Extrapolation.CLAMP);
+    const scale = interpolate(tx.value, [16, SWIPE_X], [0.7, 1], Extrapolation.CLAMP);
+    const rotate = interpolate(tx.value, [0, SWIPE_X], [-28, -18], Extrapolation.CLAMP);
+    return {
+      opacity,
+      transform: [{ scale }, { rotate: `${rotate}deg` }],
+    };
+  });
 
-  const nopeStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(tx.value, [-20, -SWIPE_X], [0, 1], Extrapolation.CLAMP),
-  }));
+  const nopeStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(tx.value, [-16, -SWIPE_X], [0, 1], Extrapolation.CLAMP);
+    const scale = interpolate(tx.value, [-16, -SWIPE_X], [0.7, 1], Extrapolation.CLAMP);
+    const rotate = interpolate(tx.value, [0, -SWIPE_X], [28, 18], Extrapolation.CLAMP);
+    return {
+      opacity,
+      transform: [{ scale }, { rotate: `${rotate}deg` }],
+    };
+  });
 
-  const superStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(ty.value, [-20, SWIPE_Y], [0, 1], Extrapolation.CLAMP),
-  }));
+  const superStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(ty.value, [-16, SWIPE_Y], [0, 1], Extrapolation.CLAMP);
+    const scale = interpolate(ty.value, [-16, SWIPE_Y], [0.75, 1], Extrapolation.CLAMP);
+    return {
+      opacity,
+      transform: [{ scale }, { rotate: '-8deg' }],
+    };
+  });
 
   const tapPhoto = (side: 'left' | 'right') => {
     if (!onPhotoIndexChange || photos.length <= 1) return;
@@ -188,7 +234,8 @@ export const SwipeCard = forwardRef<SwipeCardHandle, Props>(function SwipeCard(
         </Animated.View>
 
         <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.75)']}
+          colors={['transparent', 'rgba(0,0,0,0.55)', 'rgba(0,0,0,0.82)']}
+          locations={[0, 0.45, 1]}
           style={styles.bottomFade}
         >
           <View style={styles.badges}>
@@ -248,7 +295,7 @@ export const SwipeCard = forwardRef<SwipeCardHandle, Props>(function SwipeCard(
 const styles = StyleSheet.create({
   card: {
     ...StyleSheet.absoluteFillObject,
-    borderRadius: radii.xl,
+    borderRadius: radii.card,
     overflow: 'hidden',
     backgroundColor: colors.charcoal,
   },
@@ -306,43 +353,39 @@ const styles = StyleSheet.create({
     top: 48,
     zIndex: 6,
     borderWidth: 4,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 8,
-    transform: [{ rotate: '-18deg' }],
   },
   likeStamp: {
-    left: 20,
+    left: 18,
     borderColor: colors.like,
   },
   nopeStamp: {
-    right: 20,
+    right: 18,
     borderColor: colors.nope,
-    transform: [{ rotate: '18deg' }],
   },
   superStamp: {
     alignSelf: 'center',
-    left: '20%',
-    right: '20%',
+    left: '18%',
+    right: '18%',
+    top: 56,
     borderColor: colors.superLike,
-    transform: [{ rotate: '-8deg' }],
   },
   likeStampText: {
+    ...typography.stamp,
     color: colors.like,
-    fontSize: 36,
-    fontWeight: '900',
-    letterSpacing: 2,
+    fontSize: 40,
   },
   nopeStampText: {
+    ...typography.stamp,
     color: colors.nope,
-    fontSize: 36,
-    fontWeight: '900',
-    letterSpacing: 2,
+    fontSize: 40,
   },
   superStampText: {
+    ...typography.stamp,
     color: colors.superLike,
     fontSize: 28,
-    fontWeight: '900',
     letterSpacing: 1,
     textAlign: 'center',
   },
@@ -353,7 +396,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     paddingHorizontal: 16,
     paddingBottom: 18,
-    paddingTop: 60,
+    paddingTop: 72,
   },
   badges: {
     flexDirection: 'row',

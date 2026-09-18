@@ -299,5 +299,6 @@ const styles = StyleSheet.create({
   fill: {
     height: '100%',
     backgroundColor: colors.sliderOn,
+    borderRadius: 2,
   },
 });

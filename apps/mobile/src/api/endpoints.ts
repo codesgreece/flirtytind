@@ -222,6 +222,15 @@ export const notificationsApi = {
   markRead: (ids?: string[]) => api.patch('/notifications/read', { ids }),
 };
 
+export const devicesApi = {
+  register: (input: {
+    token: string;
+    platform: 'ios' | 'android' | 'web';
+    deviceId?: string;
+  }) =>
+    api.post<{ ok: boolean }>('/devices/register', input),
+};
+
 export const subscriptionsApi = {
   current: () => api.get<SubscriptionInfo>('/subscriptions/me'),
   subscribe: (planCode: PlanCode) =>

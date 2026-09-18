@@ -20,6 +20,7 @@ export default function MessagesScreen() {
   const error = conversations.isError && matches.isError;
   const hasData =
     (conversations.data?.length ?? 0) > 0 || (matches.data?.length ?? 0) > 0;
+  const likeCount = likes.data?.count ?? 0;
 
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
@@ -34,7 +35,12 @@ export default function MessagesScreen() {
       {loading ? (
         <LoadingState />
       ) : error && !hasData ? (
-        <ErrorState onRetry={() => { conversations.refetch(); matches.refetch(); }} />
+        <ErrorState
+          onRetry={() => {
+            conversations.refetch();
+            matches.refetch();
+          }}
+        />
       ) : (
         <ScrollView>
           <Text style={styles.section}>New matches</Text>
@@ -44,10 +50,21 @@ export default function MessagesScreen() {
             contentContainerStyle={styles.matchesRow}
           >
             <Pressable style={styles.likesCard} onPress={() => router.push('/(tabs)/likes')}>
-              <View style={styles.likesInner}>
-                <Ionicons name="heart" size={28} color={colors.brandMagenta} />
-                <Text style={styles.likesText}>{likes.data?.count ?? 0} likes</Text>
-              </View>
+              <LinearGradient
+                colors={['#F5C518', '#E8A317']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.likesBorder}
+              >
+                <View style={styles.likesInner}>
+                  <View style={styles.likesBadge}>
+                    <Ionicons name="heart" size={16} color={colors.white} />
+                  </View>
+                </View>
+              </LinearGradient>
+              <Text style={styles.likesText}>
+                {likeCount} like{likeCount === 1 ? '' : 's'}
+              </Text>
             </Pressable>
             {(matches.data ?? []).map((m) => {
               const uri = m.otherUser.photos?.[0]?.url;
@@ -57,9 +74,7 @@ export default function MessagesScreen() {
                   style={styles.matchCard}
                   onPress={() =>
                     router.push(
-                      m.conversationId
-                        ? `/chat/${m.conversationId}`
-                        : `/match/${m.id}`,
+                      m.conversationId ? `/chat/${m.conversationId}` : `/match/${m.id}`,
                     )
                   }
                 >
@@ -91,6 +106,8 @@ export default function MessagesScreen() {
               scrollEnabled={false}
               renderItem={({ item }) => {
                 const uri = item.otherUser.photos?.[0]?.url;
+                const isTeam =
+                  /team|flirty greece|support/i.test(item.otherUser.firstName ?? '');
                 return (
                   <Pressable
                     style={styles.row}
@@ -109,8 +126,10 @@ export default function MessagesScreen() {
                     {item.unreadCount ? <View style={styles.unreadDot} /> : null}
                     <View style={styles.rowText}>
                       <View style={styles.nameRow}>
-                        <Text style={styles.rowName}>{item.otherUser.firstName}</Text>
-                        {item.otherUser.verified ? (
+                        <Text style={styles.rowName}>
+                          {isTeam ? 'Team Flirty Greece' : item.otherUser.firstName}
+                        </Text>
+                        {(item.otherUser.verified || isTeam) ? (
                           <View style={styles.verified}>
                             <Ionicons name="checkmark" size={10} color={colors.white} />
                           </View>
@@ -146,24 +165,37 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginTop: 12,
     marginBottom: 12,
+    color: colors.black,
   },
-  matchesRow: { paddingHorizontal: 16, gap: 12 },
-  likesCard: {
+  matchesRow: { paddingHorizontal: 16, gap: 12, paddingBottom: 4 },
+  likesCard: { width: 72, alignItems: 'center' },
+  likesBorder: {
     width: 72,
     height: 96,
     borderRadius: radii.md,
-    borderWidth: 3,
-    borderColor: colors.black,
-    overflow: 'hidden',
+    padding: 3,
   },
   likesInner: {
     flex: 1,
+    borderRadius: radii.md - 2,
+    backgroundColor: colors.bgGray,
     alignItems: 'center',
     justifyContent: 'flex-end',
-    paddingBottom: 8,
-    backgroundColor: colors.bgGray,
+    paddingBottom: 10,
+    overflow: 'hidden',
   },
-  likesText: { fontSize: 11, fontWeight: '700', marginTop: 4 },
+  likesBadge: {
+    backgroundColor: '#3A3A3A',
+    borderRadius: radii.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  likesText: {
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 6,
+    color: colors.textPrimary,
+  },
   matchCard: { width: 72 },
   matchImg: {
     width: 72,

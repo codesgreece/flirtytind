@@ -14,7 +14,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { ChatBubble } from '../../src/components/ChatBubble';
+import { ChatBubble, TypingIndicator } from '../../src/components/ChatBubble';
 import { BackButton } from '../../src/components/BackButton';
 import { LoadingState, ErrorState } from '../../src/components/EmptyState';
 import { useMessages, useSendMessage, useConversations } from '../../src/hooks/queries';
@@ -37,6 +37,7 @@ export default function ChatScreen() {
   const conversations = useConversations();
   const [text, setText] = useState('');
   const [showPushBanner, setShowPushBanner] = useState(true);
+  const [typing, setTyping] = useState(false);
   const qc = useQueryClient();
 
   const conversation = conversations.data?.find((c) => c.id === conversationId);
@@ -51,12 +52,24 @@ export default function ChatScreen() {
     if (!socket) return;
     const onMessage = () => {
       qc.invalidateQueries({ queryKey: ['messages', conversationId] });
+      setTyping(false);
+    };
+    const onTyping = (payload: {
+      conversationId?: string;
+      userId?: string;
+      isTyping?: boolean;
+    }) => {
+      if (payload?.conversationId === conversationId && payload?.userId !== userId) {
+        setTyping(payload.isTyping !== false);
+      }
     };
     socket.on(REALTIME_EVENTS.MESSAGE_CREATED, onMessage);
+    socket.on(REALTIME_EVENTS.USER_TYPING, onTyping);
     return () => {
       socket.off(REALTIME_EVENTS.MESSAGE_CREATED, onMessage);
+      socket.off(REALTIME_EVENTS.USER_TYPING, onTyping);
     };
-  }, [conversationId, qc]);
+  }, [conversationId, qc, userId]);
 
   const onSend = async () => {
     const body = text.trim();
@@ -97,7 +110,12 @@ export default function ChatScreen() {
       </View>
 
       {showPushBanner ? (
-        <LinearGradient colors={[...colors.brandGradient]} style={styles.pushBanner}>
+        <LinearGradient
+          colors={[colors.gradientStart, colors.gradientEnd]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.pushBanner}
+        >
           <View style={{ flex: 1 }}>
             <Text style={styles.pushTitle}>
               See when {other?.firstName ?? 'they'} answers
@@ -120,6 +138,7 @@ export default function ChatScreen() {
           keyExtractor={(m) => m.id}
           contentContainerStyle={styles.list}
           inverted
+          ListHeaderComponent={typing ? <TypingIndicator /> : null}
           ListFooterComponent={
             <View style={styles.matchIntro}>
               <Text style={styles.matchLine}>
@@ -129,6 +148,9 @@ export default function ChatScreen() {
               </Text>
               {items.length === 0 ? (
                 <>
+                  {other?.photos?.[0]?.url ? (
+                    <Image source={{ uri: other.photos[0].url }} style={styles.matchAvatar} />
+                  ) : null}
                   <Text style={styles.readPrompt}>
                     Know when {other?.firstName ?? 'they'} has read your message.
                   </Text>
@@ -178,7 +200,7 @@ export default function ChatScreen() {
           <View style={[styles.util, { backgroundColor: colors.linkBlue }]}>
             <Ionicons name="id-card" size={20} color={colors.white} />
           </View>
-          <View style={[styles.util, { backgroundColor: colors.bgGray }]}>
+          <View style={[styles.util, styles.utilGif]}>
             <Text style={styles.gif}>GIF</Text>
           </View>
           <View style={[styles.util, { backgroundColor: '#4CD964' }]}>
@@ -204,7 +226,12 @@ const styles = StyleSheet.create({
   headerAvatar: { width: 36, height: 36, borderRadius: 18 },
   ph: { backgroundColor: colors.bgGray },
   headerName: { fontSize: 12, fontWeight: '600', marginTop: 2 },
-  headerRight: { flexDirection: 'row', gap: 14, width: 70, justifyContent: 'flex-end' },
+  headerRight: {
+    flexDirection: 'row',
+    gap: 14,
+    width: 70,
+    justifyContent: 'flex-end',
+  },
   pushBanner: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -231,6 +258,12 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     textAlign: 'center',
   },
+  matchAvatar: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    marginVertical: 8,
+  },
   readPrompt: { color: colors.textSecondary, fontSize: 14, textAlign: 'center' },
   readBtn: {
     flexDirection: 'row',
@@ -241,6 +274,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 12,
     marginTop: 4,
+    shadowColor: colors.linkBlue,
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
   },
   readBtnText: { color: colors.white, fontWeight: '700' },
   composer: { paddingHorizontal: 12, gap: 10 },
@@ -263,6 +300,11 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  utilGif: {
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   gif: { fontWeight: '800', fontSize: 11, color: colors.textPrimary },
 });

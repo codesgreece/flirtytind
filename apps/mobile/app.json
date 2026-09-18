@@ -36,7 +36,8 @@
         {
           "photosPermission": "Allow Flirty Greece to access your photos for your profile."
         }
-      ]
+      ],
+      "expo-notifications"
     ],
     "experiments": {
       "typedRoutes": true
