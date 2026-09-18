@@ -1,0 +1,33 @@
+{
+  "name": "flirty-greece",
+  "private": true,
+  "packageManager": "pnpm@10.33.3",
+  "scripts": {
+    "dev:api": "pnpm --filter @flirty/api start:dev",
+    "dev:mobile": "pnpm --filter @flirty/mobile start",
+    "build": "pnpm --filter @flirty/shared build && pnpm --filter @flirty/validation build && echo \"Root build: shared packages only (mobile/API deploy separately)\"",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "db:generate": "pnpm --filter @flirty/api prisma:generate",
+    "db:migrate": "pnpm --filter @flirty/api prisma:migrate",
+    "db:seed": "pnpm --filter @flirty/api prisma:seed",
+    "db:studio": "pnpm --filter @flirty/api prisma:studio"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "prisma",
+      "esbuild",
+      "bcrypt",
+      "bcryptjs"
+    ]
+  },
+  "devDependencies": {
+    "socket.io-client": "^4.8.3"
+  }
+}
