@@ -136,7 +136,7 @@ export const authApi = {
     api.post<AuthResponse>('/auth/login', input, { auth: false }),
   refresh: (refreshToken: string) =>
     api.post<AuthResponse>('/auth/refresh', { refreshToken }, { auth: false }),
-  me: () => api.get<AuthResponse['user'] & { profile?: Profile }>('/auth/me'),
+  me: () => api.get<AuthResponse['user'] & { profile?: Profile }>('/users/me'),
 };
 
 export const profilesApi = {
@@ -144,19 +144,19 @@ export const profilesApi = {
   updateMe: (input: UpdateProfileInput) => api.patch<Profile>('/profiles/me', input),
   getById: (id: string) => api.get<Profile>(`/profiles/${id}`),
   uploadPhoto: (formData: FormData) =>
-    apiRequest<ProfilePhoto>('/profiles/me/photos', {
+    apiRequest<ProfilePhoto>('/photos/upload', {
       method: 'POST',
       formData,
       auth: true,
     }),
-  deletePhoto: (photoId: string) => api.delete(`/profiles/me/photos/${photoId}`),
+  deletePhoto: (photoId: string) => api.delete(`/photos/${photoId}`),
   reorderPhotos: (photoIds: string[]) =>
-    api.put('/profiles/me/photos/reorder', { photoIds }),
+    api.patch('/photos/reorder', { photoIds }),
 };
 
 export const preferencesApi = {
-  get: () => api.get<Preferences>('/preferences'),
-  update: (input: PreferencesInput) => api.patch<Preferences>('/preferences', input),
+  get: () => api.get<Preferences>('/preferences/me'),
+  update: (input: PreferencesInput) => api.patch<Preferences>('/preferences/me', input),
 };
 
 export const discoverApi = {
@@ -166,7 +166,7 @@ export const discoverApi = {
     if (params?.limit) q.set('limit', String(params.limit));
     const qs = q.toString();
     return api.get<{ items: DiscoverProfile[]; nextCursor?: string | null }>(
-      `/discover${qs ? `?${qs}` : ''}`,
+      `/discover/feed${qs ? `?${qs}` : ''}`,
     );
   },
 };
@@ -181,12 +181,12 @@ export const swipesApi = {
 };
 
 export const matchesApi = {
-  list: () => api.get<{ items: MatchItem[] }>('/matches'),
+  list: () => api.get<MatchItem[]>('/matches'),
   get: (id: string) => api.get<MatchItem>(`/matches/${id}`),
 };
 
 export const messagesApi = {
-  conversations: () => api.get<{ items: ConversationItem[] }>('/messages/conversations'),
+  conversations: () => api.get<ConversationItem[]>('/messages/conversations'),
   list: (conversationId: string, cursor?: string) => {
     const q = cursor ? `?cursor=${encodeURIComponent(cursor)}` : '';
     return api.get<{ items: MessageItem[]; nextCursor?: string | null }>(
@@ -198,22 +198,34 @@ export const messagesApi = {
   direct: (targetUserId: string, body: string) =>
     api.post<MessageItem>('/messages/direct', { targetUserId, body }),
   markRead: (conversationId: string) =>
-    api.post(`/messages/conversations/${conversationId}/read`),
+    api.patch(`/messages/conversations/${conversationId}/read`),
 };
 
 export const likesApi = {
-  received: () => api.get<{ items: LikeReceived[]; count: number }>('/likes/received'),
+  received: () =>
+    api.get<
+      Array<{
+        id: string;
+        isSuper: boolean;
+        createdAt: string;
+        user: {
+          id: string;
+          firstName: string | null;
+          photo: ProfilePhoto | null;
+        };
+      }>
+    >('/likes/received'),
 };
 
 export const notificationsApi = {
   list: () => api.get<{ items: unknown[] }>('/notifications'),
-  markRead: (id: string) => api.post(`/notifications/${id}/read`),
+  markRead: (ids?: string[]) => api.patch('/notifications/read', { ids }),
 };
 
 export const subscriptionsApi = {
   current: () => api.get<SubscriptionInfo>('/subscriptions/me'),
   subscribe: (planCode: PlanCode) =>
-    api.post<SubscriptionInfo>('/subscriptions', { planCode }),
+    api.post<SubscriptionInfo>('/subscriptions/subscribe', { planCode }),
   entitlements: () =>
     api.get<{
       planCode: PlanCode;
@@ -222,7 +234,7 @@ export const subscriptionsApi = {
       rewindsRemaining: number | null;
       dmsRemaining: number | null;
       boostsRemaining: number;
-    }>('/subscriptions/entitlements'),
+    }>('/entitlements/me'),
 };
 
 export const blocksApi = {

@@ -128,6 +128,24 @@ async function main() {
         update: {},
       });
     }
+
+    // Placeholder photo so seed users appear in discovery (DEV ONLY)
+    const existingPhoto = await prisma.profilePhoto.findFirst({
+      where: { userId: user.id },
+    });
+    if (!existingPhoto) {
+      await prisma.profilePhoto.create({
+        data: {
+          userId: user.id,
+          key: `seed/${user.id}.png`,
+          url: `${process.env.STORAGE_PUBLIC_BASE_URL ?? 'http://localhost:3001/uploads'}/seed/placeholder.png`,
+          sortOrder: 0,
+          isPrimary: true,
+          mimeType: 'image/png',
+          bytes: 70,
+        },
+      });
+    }
   }
   console.log('  ✓ seed users (seed.*@flirty.local / SeedPass123!)');
 

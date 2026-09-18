@@ -66,6 +66,42 @@ export class ProfilesService {
     return this.prisma.interest.findMany({ orderBy: { name: 'asc' } });
   }
 
+  async getPublicProfile(viewerId: string, targetUserId: string) {
+    const blocked = await this.prisma.block.findFirst({
+      where: {
+        OR: [
+          { blockerId: viewerId, blockedId: targetUserId },
+          { blockerId: targetUserId, blockedId: viewerId },
+        ],
+      },
+    });
+    if (blocked) throw new NotFoundException('Profile not found');
+
+    const profile = await this.prisma.profile.findUnique({
+      where: { userId: targetUserId },
+      include: {
+        user: {
+          select: {
+            status: true,
+            photos: { orderBy: { sortOrder: 'asc' } },
+            interests: { include: { interest: true } },
+          },
+        },
+      },
+    });
+    if (!profile || profile.user.status !== 'ACTIVE') {
+      throw new NotFoundException('Profile not found');
+    }
+
+    return {
+      ...profile,
+      userId: targetUserId,
+      photos: profile.user.photos,
+      interests: profile.user.interests.map((i) => i.interest),
+      user: undefined,
+    };
+  }
+
   async recomputeCompletion(userId: string): Promise<number> {
     const profile = await this.prisma.profile.findUnique({ where: { userId } });
     if (!profile) return 0;

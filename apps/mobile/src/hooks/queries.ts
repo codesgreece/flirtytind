@@ -49,14 +49,20 @@ export function useSwipe() {
 export function useMatches() {
   return useQuery({
     queryKey: ['matches'],
-    queryFn: async () => (await matchesApi.list()).items ?? [],
+    queryFn: async () => {
+      const res = await matchesApi.list();
+      return Array.isArray(res) ? res : [];
+    },
   });
 }
 
 export function useConversations() {
   return useQuery({
     queryKey: ['conversations'],
-    queryFn: async () => (await messagesApi.conversations()).items ?? [],
+    queryFn: async () => {
+      const res = await messagesApi.conversations();
+      return Array.isArray(res) ? res : [];
+    },
   });
 }
 
@@ -84,7 +90,20 @@ export function useLikesReceived() {
     queryKey: ['likes'],
     queryFn: async () => {
       const res = await likesApi.received();
-      return { items: res.items ?? [], count: res.count ?? res.items?.length ?? 0 };
+      const items = Array.isArray(res) ? res : [];
+      return {
+        items: items.map((l) => ({
+          id: l.id,
+          createdAt: l.createdAt,
+          isSuperLike: l.isSuper,
+          fromUser: {
+            id: l.user.id,
+            firstName: l.user.firstName ?? '',
+            photos: l.user.photo ? [l.user.photo] : [],
+          },
+        })),
+        count: items.length,
+      };
     },
   });
 }

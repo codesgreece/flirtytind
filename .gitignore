@@ -11,3 +11,6 @@ apps/mobile/.expo
 apps/mobile/dist
 *.tsbuildinfo
 .DS_Store
+.env
+apps/api/.env
+apps/mobile/.env
