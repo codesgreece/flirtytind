@@ -9,6 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { EntitlementsService } from '../entitlements/entitlements.service';
 import { orderedMatchPair } from '../common/utils/geo';
 import { RealtimeEmitter } from '../realtime/realtime.emitter';
+import { PushService } from '../push/push.service';
 import { REALTIME_EVENTS } from '@flirty/shared';
 
 @Injectable()
@@ -17,6 +18,7 @@ export class SwipesService {
     private readonly prisma: PrismaService,
     private readonly entitlements: EntitlementsService,
     private readonly realtime: RealtimeEmitter,
+    private readonly push: PushService,
   ) {}
 
   async swipe(userId: string, input: SwipeInput) {
@@ -209,6 +211,16 @@ export class SwipesService {
       this.realtime.emitToUser(input.targetUserId, REALTIME_EVENTS.NOTIFICATION_CREATED, {
         type: 'MATCH',
       });
+      void this.push.sendToUser(userId, 'New match!', 'You have a new match', {
+        type: 'MATCH',
+        ...payload,
+      });
+      void this.push.sendToUser(
+        input.targetUserId,
+        'New match!',
+        'You have a new match',
+        { type: 'MATCH', ...payload },
+      );
     } else if (isLike) {
       this.realtime.emitToUser(
         input.targetUserId,
@@ -218,6 +230,12 @@ export class SwipesService {
       this.realtime.emitToUser(input.targetUserId, REALTIME_EVENTS.NOTIFICATION_CREATED, {
         type: isSuper ? 'SUPER_LIKE' : 'LIKE',
       });
+      void this.push.sendToUser(
+        input.targetUserId,
+        isSuper ? 'Someone super liked you' : 'Someone liked you',
+        isSuper ? 'You received a super like' : 'You have a new like',
+        { type: isSuper ? 'SUPER_LIKE' : 'LIKE', fromUserId: userId },
+      );
     }
 
     return {

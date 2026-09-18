@@ -32,7 +32,14 @@ export class ConsumablesService {
       type,
       priceCents,
     });
-    if (!bill.confirmed) throw new BadRequestException('Billing not confirmed');
+    if (!bill.confirmed) {
+      return {
+        pending: true,
+        provider: bill.provider,
+        providerRef: bill.providerRef,
+        checkoutUrl: bill.checkoutUrl ?? null,
+      };
+    }
 
     const quantity = quantityFor(type);
     const ledger = await this.prisma.consumableLedger.create({

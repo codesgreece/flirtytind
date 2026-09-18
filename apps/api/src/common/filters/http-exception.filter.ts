@@ -15,6 +15,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
+    const isProd = process.env.NODE_ENV === 'production';
 
     let status = HttpStatus.INTERNAL_SERVER_ERROR;
     let body: Record<string, unknown> = {
@@ -32,7 +33,18 @@ export class HttpExceptionFilter implements ExceptionFilter {
       }
     } else if (exception instanceof Error) {
       this.logger.error(exception.message, exception.stack);
-      body = { statusCode: status, message: exception.message };
+      body = {
+        statusCode: status,
+        message: isProd ? 'Internal server error' : exception.message,
+      };
+      if (!isProd) {
+        body.stack = exception.stack;
+      }
+    }
+
+    // Never leak stack traces in production responses
+    if (isProd && 'stack' in body) {
+      delete body.stack;
     }
 
     response.status(status).json({

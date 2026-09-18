@@ -13,4 +13,6 @@ export interface StorageProvider {
     folder?: string;
   }): Promise<StoredObject>;
   delete(key: string): Promise<void>;
+  getSignedUrl?(key: string, expiresInSeconds?: number): Promise<string>;
+  exists?(key: string): Promise<boolean>;
 }

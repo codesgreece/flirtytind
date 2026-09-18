@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { join } from 'path';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
@@ -27,6 +29,7 @@ import { RealtimeModule } from './realtime/realtime.module';
 import { EntitlementsModule } from './entitlements/entitlements.module';
 import { StorageModule } from './storage/storage.module';
 import { BillingModule } from './billing/billing.module';
+import { PushModule } from './push/push.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -39,10 +42,18 @@ import { HealthController } from './health.controller';
         '.env',
       ],
     }),
+    ThrottlerModule.forRoot([
+      {
+        name: 'default',
+        ttl: 60_000,
+        limit: 60,
+      },
+    ]),
     PrismaModule,
     RedisModule,
     StorageModule,
     BillingModule,
+    PushModule,
     EntitlementsModule,
     AuthModule,
     UsersModule,
@@ -67,5 +78,11 @@ import { HealthController } from './health.controller';
     RealtimeModule,
   ],
   controllers: [HealthController],
+  providers: [
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}

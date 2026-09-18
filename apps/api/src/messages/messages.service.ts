@@ -7,6 +7,7 @@ import { SendMessageInput } from '@flirty/validation';
 import { PrismaService } from '../prisma/prisma.service';
 import { EntitlementsService } from '../entitlements/entitlements.service';
 import { RealtimeEmitter } from '../realtime/realtime.emitter';
+import { NotificationsService } from '../notifications/notifications.service';
 import { REALTIME_EVENTS } from '@flirty/shared';
 
 type DmInput = { targetUserId: string; body: string };
@@ -17,6 +18,7 @@ export class MessagesService {
     private readonly prisma: PrismaService,
     private readonly entitlements: EntitlementsService,
     private readonly realtime: RealtimeEmitter,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async listConversations(userId: string) {
@@ -120,14 +122,12 @@ export class MessagesService {
     });
 
     for (const o of others) {
-      await this.prisma.notification.create({
-        data: {
-          userId: o.userId,
-          type: 'MESSAGE',
-          title: 'New message',
-          body: input.body.slice(0, 120),
-          data: { conversationId: input.conversationId, messageId: message.id },
-        },
+      await this.notifications.create({
+        userId: o.userId,
+        type: 'MESSAGE',
+        title: 'New message',
+        body: input.body.slice(0, 120),
+        data: { conversationId: input.conversationId, messageId: message.id },
       });
       this.realtime.emitToUser(o.userId, REALTIME_EVENTS.MESSAGE_CREATED, message);
       this.realtime.emitToUser(o.userId, REALTIME_EVENTS.NOTIFICATION_CREATED, {

@@ -6,6 +6,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { ProfilesService } from '../profiles/profiles.service';
+import { validateImageUpload } from '../storage/image-validation';
 
 const MAX_PHOTOS = 6;
 
@@ -29,6 +30,25 @@ export class PhotosService {
     file: Express.Multer.File,
   ) {
     if (!file) throw new BadRequestException('File required');
+
+    const validation = validateImageUpload({
+      buffer: file.buffer,
+      mimeType: file.mimetype,
+    });
+    if (!validation.ok) {
+      switch (validation.error) {
+        case 'TOO_LARGE':
+          throw new BadRequestException('Image must be 10MB or smaller');
+        case 'MIME_NOT_ALLOWED':
+          throw new BadRequestException('Only JPEG, PNG, and WebP images are allowed');
+        case 'MAGIC_MISMATCH':
+        case 'UNRECOGNIZED':
+          throw new BadRequestException('File content does not match declared image type');
+        default:
+          throw new BadRequestException('Invalid image upload');
+      }
+    }
+
     const count = await this.prisma.profilePhoto.count({ where: { userId } });
     if (count >= MAX_PHOTOS) {
       throw new BadRequestException(`Maximum ${MAX_PHOTOS} photos`);
@@ -36,7 +56,7 @@ export class PhotosService {
 
     const stored = await this.storage.upload({
       buffer: file.buffer,
-      mimeType: file.mimetype,
+      mimeType: validation.mimeType,
       originalName: file.originalname,
       folder: `users/${userId}`,
     });

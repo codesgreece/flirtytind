@@ -37,4 +37,10 @@ export class SubscriptionsController {
   cancel(@CurrentUser() user: AuthUser) {
     return this.subscriptions.cancel(user.id);
   }
+
+  @Post('restore')
+  @UseGuards(JwtAuthGuard)
+  restore(@CurrentUser() user: AuthUser) {
+    return this.subscriptions.restore(user.id);
+  }
 }

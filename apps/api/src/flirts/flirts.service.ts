@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { PrismaService } from '../prisma/prisma.service';
 import { EntitlementsService } from '../entitlements/entitlements.service';
 import { RealtimeEmitter } from '../realtime/realtime.emitter';
+import { NotificationsService } from '../notifications/notifications.service';
 import { REALTIME_EVENTS } from '@flirty/shared';
 import { utcDayKey } from '../common/utils/geo';
 
@@ -22,6 +23,7 @@ export class FlirtsService {
     private readonly prisma: PrismaService,
     private readonly entitlements: EntitlementsService,
     private readonly realtime: RealtimeEmitter,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async send(userId: string, input: z.infer<typeof flirtSchema>) {
@@ -55,14 +57,12 @@ export class FlirtsService {
       },
     });
 
-    await this.prisma.notification.create({
-      data: {
-        userId: input.targetUserId,
-        type: 'FLIRT',
-        title: 'Someone flirted with you',
-        body: input.message?.slice(0, 120) ?? 'You received a flirt',
-        data: { fromUserId: userId, flirtId: flirt.id },
-      },
+    await this.notifications.create({
+      userId: input.targetUserId,
+      type: 'FLIRT',
+      title: 'Someone flirted with you',
+      body: input.message?.slice(0, 120) ?? 'You received a flirt',
+      data: { fromUserId: userId, flirtId: flirt.id },
     });
 
     this.realtime.emitToUser(input.targetUserId, REALTIME_EVENTS.NOTIFICATION_CREATED, {

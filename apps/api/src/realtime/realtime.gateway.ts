@@ -10,8 +10,6 @@ import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Server, Socket } from 'socket.io';
-import { createAdapter } from '@socket.io/redis-adapter';
-import Redis from 'ioredis';
 import { REALTIME_EVENTS } from '@flirty/shared';
 import { RedisService } from '../redis/redis.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -19,6 +17,8 @@ import { RealtimeEmitter } from './realtime.emitter';
 import { JwtPayload } from '../auth/strategies/jwt.strategy';
 
 type AuthedSocket = Socket & { data: { userId?: string } };
+
+const PRESENCE_TTL_SECONDS = 60;
 
 @WebSocketGateway({
   cors: { origin: true, credentials: true },
@@ -31,7 +31,6 @@ export class RealtimeGateway
   server!: Server;
 
   private readonly logger = new Logger(RealtimeGateway.name);
-  private readonly presenceKey = 'presence:online';
 
   constructor(
     private readonly jwt: JwtService,
@@ -50,28 +49,7 @@ export class RealtimeGateway
         this.server.to(conversationRoom(conversationId)).emit(event, payload);
       },
     });
-
-    // Attach Redis adapter asynchronously once Socket.IO server is ready
-    setImmediate(() => this.attachRedisAdapter());
-  }
-
-  private attachRedisAdapter() {
-    try {
-      const server = this.server as Server & {
-        adapter: ((v?: unknown) => unknown) & { constructor?: { name?: string } };
-      };
-      if (!server || typeof server.adapter !== 'function') {
-        this.logger.warn('Socket.IO server not ready for Redis adapter');
-        return;
-      }
-      const url = this.config.get<string>('REDIS_URL', 'redis://localhost:6379');
-      const pub = new Redis(url);
-      const sub = pub.duplicate();
-      server.adapter(createAdapter(pub, sub));
-      this.logger.log('Socket.IO Redis adapter attached');
-    } catch (e) {
-      this.logger.warn(`Redis adapter not attached: ${(e as Error).message}`);
-    }
+    // Redis adapter is attached in main.ts via RedisIoAdapter — do not re-attach here.
   }
 
   async handleConnection(client: AuthedSocket) {
@@ -86,9 +64,19 @@ export class RealtimeGateway
       const payload = await this.jwt.verifyAsync<JwtPayload>(token, {
         secret: this.config.getOrThrow<string>('JWT_ACCESS_SECRET'),
       });
+
+      const user = await this.prisma.user.findUnique({
+        where: { id: payload.sub },
+        select: { id: true, status: true },
+      });
+      if (!user || user.status !== 'ACTIVE') {
+        client.disconnect(true);
+        return;
+      }
+
       client.data.userId = payload.sub;
       await client.join(userRoom(payload.sub));
-      await this.redis.sadd(this.presenceKey, payload.sub);
+      await this.touchPresence(payload.sub);
       this.server.emit(REALTIME_EVENTS.USER_ONLINE, { userId: payload.sub });
       await this.prisma.user.update({
         where: { id: payload.sub },
@@ -102,16 +90,23 @@ export class RealtimeGateway
   async handleDisconnect(client: AuthedSocket) {
     const userId = client.data.userId;
     if (!userId) return;
-    // Only mark offline if no other sockets for this user
     const sockets = await this.server.in(userRoom(userId)).fetchSockets();
     if (sockets.length === 0) {
-      await this.redis.srem(this.presenceKey, userId);
+      await this.redis.del(presenceKey(userId));
       this.server.emit(REALTIME_EVENTS.USER_OFFLINE, { userId });
       await this.prisma.user.update({
         where: { id: userId },
         data: { lastSeenAt: new Date() },
       });
     }
+  }
+
+  @SubscribeMessage('presence.heartbeat')
+  async heartbeat(client: AuthedSocket) {
+    const userId = client.data.userId;
+    if (!userId) return { ok: false };
+    await this.touchPresence(userId);
+    return { ok: true };
   }
 
   @SubscribeMessage('conversation.join')
@@ -151,6 +146,17 @@ export class RealtimeGateway
   ) {
     const userId = client.data.userId;
     if (!userId || !data?.conversationId) return;
+
+    const part = await this.prisma.conversationParticipant.findUnique({
+      where: {
+        conversationId_userId: {
+          conversationId: data.conversationId,
+          userId,
+        },
+      },
+    });
+    if (!part || part.leftAt) return;
+
     client.to(conversationRoom(data.conversationId)).emit(REALTIME_EVENTS.USER_TYPING, {
       conversationId: data.conversationId,
       userId,
@@ -165,6 +171,10 @@ export class RealtimeGateway
   emitToConversation(conversationId: string, event: string, payload: unknown) {
     this.server.to(conversationRoom(conversationId)).emit(event, payload);
   }
+
+  private async touchPresence(userId: string) {
+    await this.redis.set(presenceKey(userId), '1', PRESENCE_TTL_SECONDS);
+  }
 }
 
 function userRoom(userId: string) {
@@ -173,6 +183,10 @@ function userRoom(userId: string) {
 
 function conversationRoom(conversationId: string) {
   return `conversation:${conversationId}`;
+}
+
+function presenceKey(userId: string) {
+  return `presence:user:${userId}`;
 }
 
 function extractBearer(header?: string): string | undefined {

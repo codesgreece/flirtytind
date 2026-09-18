@@ -40,8 +40,15 @@ export class SubscriptionsService {
       planCode,
       priceCents: plan.priceCents,
     });
+
+    // Stripe (and similar): never activate from client confirmation alone
     if (!bill.confirmed) {
-      throw new BadRequestException('Billing not confirmed');
+      return {
+        pending: true,
+        provider: bill.provider,
+        providerRef: bill.providerRef,
+        checkoutUrl: bill.checkoutUrl ?? null,
+      };
     }
 
     const periodEnd = new Date();
@@ -98,10 +105,27 @@ export class SubscriptionsService {
   async cancel(userId: string) {
     const sub = await this.prisma.subscription.findUnique({ where: { userId } });
     if (!sub) throw new NotFoundException('No subscription');
+
+    if (sub.providerRef) {
+      await this.billing.cancelSubscription({
+        userId,
+        providerRef: sub.providerRef,
+      });
+    }
+
     return this.prisma.subscription.update({
       where: { userId },
       data: { cancelAtPeriodEnd: true },
       include: { plan: true },
     });
+  }
+
+  async restore(userId: string) {
+    const result = await this.billing.restorePurchases({ userId });
+    const sub = await this.prisma.subscription.findUnique({
+      where: { userId },
+      include: { plan: true },
+    });
+    return { ...result, subscription: sub };
   }
 }

@@ -1,44 +1,37 @@
 /**
  * DEV ONLY seed — creates subscription plans, interests, and clearly marked
  * seed users (emails @flirty.local). Never treat these as production data.
+ *
+ * For staging catalog-only: use prisma/seed-plans.ts instead.
  */
-import { PrismaClient, PlanCode, Gender, ShowMe, LookingFor } from '@prisma/client';
+import { PrismaClient, Gender, ShowMe, LookingFor } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
-import { DEFAULT_INTERESTS, PLAN_PRICES_EUR } from '@flirty/shared';
+import { seedPlansAndInterests } from './seed-plans';
 
 const prisma = new PrismaClient();
 
+function refuseUnsafeSeed() {
+  if (process.env.NODE_ENV === 'production') {
+    console.error('REFUSING to seed in production');
+    process.exit(1);
+  }
+
+  const dbUrl = process.env.DATABASE_URL ?? '';
+  const markers = ['prod', 'production', 'rds.amazonaws.com', 'neon.tech/prod'];
+  const lower = dbUrl.toLowerCase();
+  if (markers.some((m) => lower.includes(m)) && process.env.ALLOW_UNSAFE_SEED !== '1') {
+    console.error('REFUSING to seed: DATABASE_URL looks like production');
+    process.exit(1);
+  }
+}
+
 async function main() {
+  refuseUnsafeSeed();
+
   console.log('Seeding Flirty Greece (DEV ONLY)...');
 
-  // Plans
-  for (const code of Object.values(PlanCode)) {
-    const priceCents = Math.round(PLAN_PRICES_EUR[code as keyof typeof PLAN_PRICES_EUR] * 100);
-    await prisma.subscriptionPlan.upsert({
-      where: { code },
-      create: {
-        code,
-        name: code.charAt(0) + code.slice(1).toLowerCase(),
-        priceCents,
-        currency: 'EUR',
-      },
-      update: {
-        priceCents,
-        name: code.charAt(0) + code.slice(1).toLowerCase(),
-      },
-    });
-  }
-  console.log('  ✓ subscription plans');
-
-  // Interests
-  for (const name of DEFAULT_INTERESTS) {
-    await prisma.interest.upsert({
-      where: { name },
-      create: { name, category: 'general' },
-      update: {},
-    });
-  }
-  console.log(`  ✓ ${DEFAULT_INTERESTS.length} interests`);
+  await seedPlansAndInterests(prisma);
+  console.log('  ✓ subscription plans + interests');
 
   const passwordHash = await bcrypt.hash('SeedPass123!', 12);
   const interestRows = await prisma.interest.findMany({ take: 8 });
@@ -118,7 +111,6 @@ async function main() {
       update: {},
     });
 
-    // Attach a few interests
     for (const interest of interestRows.slice(0, 5)) {
       await prisma.profileInterest.upsert({
         where: {
@@ -129,7 +121,6 @@ async function main() {
       });
     }
 
-    // Placeholder photo so seed users appear in discovery (DEV ONLY)
     const existingPhoto = await prisma.profilePhoto.findFirst({
       where: { userId: user.id },
     });
@@ -149,7 +140,6 @@ async function main() {
   }
   console.log('  ✓ seed users (seed.*@flirty.local / SeedPass123!)');
 
-  // Optional admin for local tooling
   await prisma.user.upsert({
     where: { email: 'seed.admin@flirty.local' },
     create: {

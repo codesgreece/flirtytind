@@ -8,8 +8,12 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { createHash, randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { RedisService } from '../redis/redis.service';
 import { RegisterInput, LoginInput } from '@flirty/validation';
 import { JwtPayload } from './strategies/jwt.strategy';
+
+const LOCKOUT_THRESHOLD = 10;
+const LOCKOUT_WINDOW_SECONDS = 15 * 60;
 
 @Injectable()
 export class AuthService {
@@ -17,6 +21,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
+    private readonly redis: RedisService,
   ) {}
 
   async register(input: RegisterInput, meta?: { userAgent?: string; ip?: string }) {
@@ -40,17 +45,26 @@ export class AuthService {
   }
 
   async login(input: LoginInput, meta?: { userAgent?: string; ip?: string }) {
+    const email = input.email.toLowerCase();
+    await this.assertNotLockedOut(email, meta?.ip);
+
     const user = await this.prisma.user.findUnique({
-      where: { email: input.email.toLowerCase() },
+      where: { email },
     });
     if (!user || user.status === 'DELETED') {
+      await this.recordFailedLogin(email, meta?.ip);
       throw new UnauthorizedException('Invalid credentials');
     }
     if (user.status === 'SUSPENDED') {
       throw new UnauthorizedException('Account suspended');
     }
     const ok = await bcrypt.compare(input.password, user.passwordHash);
-    if (!ok) throw new UnauthorizedException('Invalid credentials');
+    if (!ok) {
+      await this.recordFailedLogin(email, meta?.ip);
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    await this.clearFailedLogin(email, meta?.ip);
 
     await this.prisma.user.update({
       where: { id: user.id },
@@ -103,6 +117,45 @@ export class AuthService {
       data: { revokedAt: new Date() },
     });
     return { ok: true };
+  }
+
+  private lockKey(email: string, ip?: string) {
+    return `auth:fail:${email}:${ip ?? 'unknown'}`;
+  }
+
+  private async assertNotLockedOut(email: string, ip?: string) {
+    try {
+      const count = await this.redis.get(this.lockKey(email, ip));
+      if (count && Number(count) >= LOCKOUT_THRESHOLD) {
+        const ttl = await this.redis.ttl(this.lockKey(email, ip));
+        throw new UnauthorizedException(
+          `Too many failed login attempts. Try again in ${Math.max(ttl, 1)}s`,
+        );
+      }
+    } catch (e) {
+      if (e instanceof UnauthorizedException) throw e;
+      // Redis optional for lockout — ignore connectivity errors
+    }
+  }
+
+  private async recordFailedLogin(email: string, ip?: string) {
+    try {
+      const key = this.lockKey(email, ip);
+      const n = await this.redis.incr(key);
+      if (n === 1) {
+        await this.redis.expire(key, LOCKOUT_WINDOW_SECONDS);
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  private async clearFailedLogin(email: string, ip?: string) {
+    try {
+      await this.redis.del(this.lockKey(email, ip));
+    } catch {
+      // ignore
+    }
   }
 
   private async issueTokens(
