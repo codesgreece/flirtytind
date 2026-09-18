@@ -1,7 +1,8 @@
 {
-  "version": 2,
-  "buildCommand": null,
-  "outputDirectory": "public",
+  "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
+  "installCommand": "echo 'Skipping install — static landing only'",
+  "buildCommand": "echo 'Static public/ landing — Expo mobile + Nest API deploy separately'",
+  "outputDirectory": "public",
   "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }

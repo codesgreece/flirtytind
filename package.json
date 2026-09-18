@@ -5,7 +5,7 @@
   "scripts": {
     "dev:api": "pnpm --filter @flirty/api start:dev",
     "dev:mobile": "pnpm --filter @flirty/mobile start",
-    "build": "pnpm -r build",
+    "build": "pnpm --filter @flirty/shared build && pnpm --filter @flirty/validation build && echo \"Root build: shared packages only (mobile/API deploy separately)\"",
     "lint": "pnpm -r lint",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
