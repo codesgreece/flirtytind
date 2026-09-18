@@ -380,8 +380,11 @@ export class StripeBillingProvider implements BillingProvider, OnModuleInit {
         meta: {
           chargeId: charge.id,
           amount: charge.amount_refunded,
-          paymentIntent: charge.payment_intent,
-          metadata: charge.metadata,
+          paymentIntent:
+            typeof charge.payment_intent === 'string'
+              ? charge.payment_intent
+              : charge.payment_intent?.id ?? null,
+          metadata: charge.metadata as Record<string, string>,
         },
       },
     });
