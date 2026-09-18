@@ -224,11 +224,9 @@ export const notificationsApi = {
 
 export const devicesApi = {
   register: (input: {
-    token: string;
+    pushToken: string;
     platform: 'ios' | 'android' | 'web';
-    deviceId?: string;
-  }) =>
-    api.post<{ ok: boolean }>('/devices/register', input),
+  }) => api.post<{ ok: boolean }>('/devices/register', input),
 };
 
 export const subscriptionsApi = {

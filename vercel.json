@@ -1,8 +1,19 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "installCommand": "echo 'Skipping install — static landing only'",
-  "buildCommand": "echo 'Static public/ landing — Expo mobile + Nest API deploy separately'",
-  "outputDirectory": "public",
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "installCommand": "pnpm install",
+  "buildCommand": "pnpm --filter @flirty/shared build && pnpm --filter @flirty/validation build && pnpm --filter @flirty/mobile export:web",
+  "outputDirectory": "apps/mobile/dist",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
+      ]
+    }
+  ]
 }

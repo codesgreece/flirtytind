@@ -8,7 +8,7 @@ import { ApiError } from '../api/client';
 
 /**
  * Registers the device push token with POST /api/v1/devices/register when logged in.
- * Handles missing permissions / 404 gracefully (endpoint may land later).
+ * Skips native push APIs on web (browser Notification API can be added later).
  */
 export function useDeviceRegistration() {
   const accessToken = useAuthStore((s) => s.accessToken);
@@ -17,6 +17,7 @@ export function useDeviceRegistration() {
 
   useEffect(() => {
     if (!hydrated || !accessToken) return;
+    if (Platform.OS === 'web') return;
 
     let cancelled = false;
 
@@ -49,12 +50,11 @@ export function useDeviceRegistration() {
         if (!token || token === lastToken.current || cancelled) return;
 
         await devicesApi.register({
-          token,
-          platform: Platform.OS === 'ios' ? 'ios' : Platform.OS === 'android' ? 'android' : 'web',
+          pushToken: token,
+          platform: Platform.OS === 'ios' ? 'ios' : 'android',
         });
         lastToken.current = token;
       } catch (err) {
-        // 404 = endpoint not deployed yet; native errors = Expo Go / simulator limits
         if (err instanceof ApiError && err.status === 404) return;
         if (__DEV__) {
           // eslint-disable-next-line no-console
