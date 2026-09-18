@@ -14,7 +14,7 @@
       "backgroundColor": "#FD297B"
     },
     "ios": {
-      "supportsTablet": false,
+      "supportsTablet": true,
       "bundleIdentifier": "com.flirtygreece.app"
     },
     "android": {
@@ -26,7 +26,14 @@
     },
     "web": {
       "bundler": "metro",
-      "favicon": "./assets/favicon.png"
+      "output": "single",
+      "favicon": "./assets/favicon.png",
+      "name": "Flirty Greece",
+      "shortName": "FlirtyGreece",
+      "lang": "en",
+      "themeColor": "#FD297B",
+      "backgroundColor": "#FD297B",
+      "display": "standalone"
     },
     "plugins": [
       "expo-router",

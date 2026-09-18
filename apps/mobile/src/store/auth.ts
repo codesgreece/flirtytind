@@ -1,5 +1,5 @@
-import * as SecureStore from 'expo-secure-store';
 import { create } from 'zustand';
+import { storageDelete, storageGet, storageSet } from '../storage/tokenStorage';
 
 const ACCESS_KEY = 'flirty_access_token';
 const REFRESH_KEY = 'flirty_refresh_token';
@@ -30,9 +30,9 @@ type AuthState = {
 
 async function save(key: string, value: string | null) {
   if (value == null) {
-    await SecureStore.deleteItemAsync(key);
+    await storageDelete(key);
   } else {
-    await SecureStore.setItemAsync(key, value);
+    await storageSet(key, value);
   }
 }
 
@@ -45,9 +45,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   hydrate: async () => {
     try {
       const [accessToken, refreshToken, userRaw] = await Promise.all([
-        SecureStore.getItemAsync(ACCESS_KEY),
-        SecureStore.getItemAsync(REFRESH_KEY),
-        SecureStore.getItemAsync(USER_KEY),
+        storageGet(ACCESS_KEY),
+        storageGet(REFRESH_KEY),
+        storageGet(USER_KEY),
       ]);
       set({
         accessToken,

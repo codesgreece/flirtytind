@@ -1,5 +1,5 @@
 import { useCallback, useImperativeHandle, forwardRef } from 'react';
-import { View, Text, StyleSheet, Dimensions, Image, Pressable } from 'react-native';
+import { View, Text, StyleSheet, useWindowDimensions, Image, Pressable } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   useSharedValue,
@@ -18,9 +18,6 @@ import type { DiscoverProfile } from '../api/endpoints';
 import { colors } from '../theme/colors';
 import { radii, typography } from '../theme/typography';
 
-const { width: SCREEN_W } = Dimensions.get('window');
-const SWIPE_X = SCREEN_W * 0.28;
-const SWIPE_Y = -120;
 const SPRING = { damping: 16, stiffness: 200, mass: 0.85 };
 
 export type SwipeCardHandle = {
@@ -58,6 +55,11 @@ export const SwipeCard = forwardRef<SwipeCardHandle, Props>(function SwipeCard(
   },
   ref,
 ) {
+  const { width: windowW } = useWindowDimensions();
+  const screenW = Math.min(windowW, 430);
+  const swipeX = screenW * 0.28;
+  const swipeY = -120;
+
   const tx = useSharedValue(0);
   const ty = useSharedValue(0);
   const exiting = useSharedValue(0);
@@ -87,13 +89,13 @@ export const SwipeCard = forwardRef<SwipeCardHandle, Props>(function SwipeCard(
     (action: SwipeAction) => {
       const toX =
         action === SwipeAction.PASS
-          ? -SCREEN_W * 1.5
+          ? -screenW * 1.5
           : action === SwipeAction.LIKE
-            ? SCREEN_W * 1.5
+            ? screenW * 1.5
             : 0;
       const toY =
         action === SwipeAction.SUPER_LIKE
-          ? -SCREEN_W * 1.6
+          ? -screenW * 1.6
           : action === SwipeAction.LIKE || action === SwipeAction.PASS
             ? 48
             : 0;
@@ -116,21 +118,21 @@ export const SwipeCard = forwardRef<SwipeCardHandle, Props>(function SwipeCard(
     .onUpdate((e) => {
       tx.value = e.translationX;
       ty.value = e.translationY;
-      const px = Math.abs(e.translationX) / SWIPE_X;
-      const py = Math.abs(Math.min(e.translationY, 0)) / Math.abs(SWIPE_Y);
+      const px = Math.abs(e.translationX) / swipeX;
+      const py = Math.abs(Math.min(e.translationY, 0)) / Math.abs(swipeY);
       const p = Math.min(1, Math.max(px, py));
       if (dragProgress) dragProgress.value = p;
     })
     .onEnd((e) => {
-      if (e.translationY < SWIPE_Y && Math.abs(e.translationX) < SWIPE_X) {
+      if (e.translationY < swipeY && Math.abs(e.translationX) < swipeX) {
         runOnJS(flyOut)(SwipeAction.SUPER_LIKE);
         return;
       }
-      if (e.translationX > SWIPE_X) {
+      if (e.translationX > swipeX) {
         runOnJS(flyOut)(SwipeAction.LIKE);
         return;
       }
-      if (e.translationX < -SWIPE_X) {
+      if (e.translationX < -swipeX) {
         runOnJS(flyOut)(SwipeAction.PASS);
         return;
       }
@@ -145,7 +147,7 @@ export const SwipeCard = forwardRef<SwipeCardHandle, Props>(function SwipeCard(
   const cardStyle = useAnimatedStyle(() => {
     const rotate = interpolate(
       tx.value,
-      [-SCREEN_W, 0, SCREEN_W],
+      [-screenW, 0, screenW],
       [-18, 0, 18],
       Extrapolation.CLAMP,
     );
@@ -159,9 +161,9 @@ export const SwipeCard = forwardRef<SwipeCardHandle, Props>(function SwipeCard(
   });
 
   const likeStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(tx.value, [16, SWIPE_X], [0, 1], Extrapolation.CLAMP);
-    const scale = interpolate(tx.value, [16, SWIPE_X], [0.7, 1], Extrapolation.CLAMP);
-    const rotate = interpolate(tx.value, [0, SWIPE_X], [-28, -18], Extrapolation.CLAMP);
+    const opacity = interpolate(tx.value, [16, swipeX], [0, 1], Extrapolation.CLAMP);
+    const scale = interpolate(tx.value, [16, swipeX], [0.7, 1], Extrapolation.CLAMP);
+    const rotate = interpolate(tx.value, [0, swipeX], [-28, -18], Extrapolation.CLAMP);
     return {
       opacity,
       transform: [{ scale }, { rotate: `${rotate}deg` }],
@@ -169,9 +171,9 @@ export const SwipeCard = forwardRef<SwipeCardHandle, Props>(function SwipeCard(
   });
 
   const nopeStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(tx.value, [-16, -SWIPE_X], [0, 1], Extrapolation.CLAMP);
-    const scale = interpolate(tx.value, [-16, -SWIPE_X], [0.7, 1], Extrapolation.CLAMP);
-    const rotate = interpolate(tx.value, [0, -SWIPE_X], [28, 18], Extrapolation.CLAMP);
+    const opacity = interpolate(tx.value, [-16, -swipeX], [0, 1], Extrapolation.CLAMP);
+    const scale = interpolate(tx.value, [-16, -swipeX], [0.7, 1], Extrapolation.CLAMP);
+    const rotate = interpolate(tx.value, [0, -swipeX], [28, 18], Extrapolation.CLAMP);
     return {
       opacity,
       transform: [{ scale }, { rotate: `${rotate}deg` }],
@@ -179,8 +181,8 @@ export const SwipeCard = forwardRef<SwipeCardHandle, Props>(function SwipeCard(
   });
 
   const superStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(ty.value, [-16, SWIPE_Y], [0, 1], Extrapolation.CLAMP);
-    const scale = interpolate(ty.value, [-16, SWIPE_Y], [0.75, 1], Extrapolation.CLAMP);
+    const opacity = interpolate(ty.value, [-16, swipeY], [0, 1], Extrapolation.CLAMP);
+    const scale = interpolate(ty.value, [-16, swipeY], [0.75, 1], Extrapolation.CLAMP);
     return {
       opacity,
       transform: [{ scale }, { rotate: '-8deg' }],

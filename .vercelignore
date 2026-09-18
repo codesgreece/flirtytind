@@ -3,6 +3,7 @@ apps/api/uploads
 apps/api/dist
 apps/mobile/.expo
 .env
-.env.*
+.env.local
 ui-references
 coverage
+*.log

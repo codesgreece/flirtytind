@@ -71,12 +71,18 @@ pnpm --filter @flirty/api start:dev
 # http://localhost:3001/api/v1/health
 ```
 
-### Mobile
+### Mobile (iOS / Android / Web)
 
 ```bash
-cp apps/mobile/.env.example apps/mobile/.env   # EXPO_PUBLIC_API_URL=http://localhost:3001
-pnpm --filter @flirty/mobile start
+cp apps/mobile/.env.example apps/mobile/.env
+# EXPO_PUBLIC_API_URL=http://localhost:3001  (use LAN IP for physical devices)
+
+pnpm --filter @flirty/mobile start          # Expo dev server
+pnpm --filter @flirty/mobile web            # Browser (Expo Web / RN Web)
+pnpm --filter @flirty/mobile export:web     # Production static SPA → apps/mobile/dist
 ```
+
+The **same** `apps/mobile` codebase runs on native and web via React Native Web. Vercel deploys the Expo Web export (`apps/mobile/dist`), not a separate fake site.
 
 Use a device/emulator that can reach the API host (replace `localhost` with your LAN IP for physical devices).
 
