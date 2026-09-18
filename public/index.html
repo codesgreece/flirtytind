@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Flirty Greece</title>
+    <meta
+      name="description"
+      content="Flirty Greece — it starts with a Swipe. Mobile dating app (Expo) with NestJS API."
+    />
+    <style>
+      :root {
+        --orange: #ff8e5e;
+        --mid: #ff5864;
+        --magenta: #fd297b;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial,
+          sans-serif;
+        color: #fff;
+        background: linear-gradient(165deg, var(--orange) 0%, var(--mid) 45%, var(--magenta) 100%);
+      }
+      main {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 1.5rem;
+        text-align: center;
+      }
+      .mark {
+        font-size: 2.5rem;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        margin: 0 0 0.75rem;
+      }
+      .tag {
+        font-size: 1.25rem;
+        font-weight: 500;
+        opacity: 0.95;
+        margin: 0 0 2rem;
+      }
+      .tag strong {
+        font-weight: 800;
+      }
+      .note {
+        max-width: 28rem;
+        font-size: 0.95rem;
+        line-height: 1.5;
+        opacity: 0.9;
+      }
+      a {
+        color: #fff;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1 class="mark">flirty greece</h1>
+      <p class="tag">It starts with a <strong>Swipe</strong>™</p>
+      <p class="note">
+        This is the project landing page. The product runs as an Expo mobile app
+        backed by the NestJS API in this monorepo — not as a browser SPA.
+      </p>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,8 @@
+node_modules
+apps/api/uploads
+apps/api/dist
+apps/mobile/.expo
+.env
+.env.*
+ui-references
+coverage
